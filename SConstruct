@@ -79,7 +79,7 @@ def GetOptions():
   os_guess = GuessOS()
   toolchain_guess = GuessToolchain(os_guess)
   processor_guess = GuessProcessor()
-  result.Add('mode', 'debug or release', 'release')
+  result.Add('mode', 'debug or release', 'debug')
   result.Add('toolchain', 'the toolchain to use (gcc, gcc-darwin or msvc)', toolchain_guess)
   result.Add('os', 'the os to build for (linux, macos or win32)', os_guess)
   result.Add('processor', 'the processor to build for (arm or ia32)', processor_guess)
@@ -122,6 +122,8 @@ def Start():
     exports='toolchain arch os mode use_snapshot library_type',
     duplicate=False
   )
+  env.Program("test", "test.cpp", CPPPATH=["public"], LIBPATH=["debug"], LIBS=["v8", "pthread", "gflags"], CPPFLAGS="-DDEBUG", CXXFLAGS="-m32", LINKFLAGS="-m32")
+  #g++ test.cpp -lv8 -Ipublic/ -Ldebug -lv8 -m32 -lpthread -lgflags -DDEBUG
 
 
 Start()
