@@ -53,20 +53,20 @@ namespace v8 {
 
 
 #define EXCEPTION_PREAMBLE()                                      \
-  thread_local.IncrementCallDepth();                              \
+  thread_local_tmp.IncrementCallDepth();                              \
   ASSERT(!i::Top::external_caught_exception());                   \
   bool has_pending_exception = false
 
 
 #define EXCEPTION_BAILOUT_CHECK(value)                                         \
   do {                                                                         \
-    thread_local.DecrementCallDepth();                                         \
+    thread_local_tmp.DecrementCallDepth();                                         \
     if (has_pending_exception) {                                               \
-      if (thread_local.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
-        if (!thread_local.IgnoreOutOfMemory())                                 \
+      if (thread_local_tmp.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
+        if (!thread_local_tmp.IgnoreOutOfMemory())                                 \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
-      bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
+      bool call_depth_is_zero = thread_local_tmp.CallDepthIsZero();                \
       i::Top::optional_reschedule_exception(call_depth_is_zero);               \
       return value;                                                            \
     }                                                                          \
@@ -76,7 +76,7 @@ namespace v8 {
 // --- D a t a   t h a t   i s   s p e c i f i c   t o   a   t h r e a d ---
 
 
-static i::HandleScopeImplementer thread_local;
+static i::HandleScopeImplementer thread_local_tmp;
 
 
 // --- E x c e p t i o n   B e h a v i o r ---
@@ -352,10 +352,10 @@ HandleScope::Data HandleScope::current_ = { -1, NULL, NULL };
 
 
 int HandleScope::NumberOfHandles() {
-  int n = thread_local.Blocks()->length();
+  int n = thread_local_tmp.Blocks()->length();
   if (n == 0) return 0;
   return ((n - 1) * i::kHandleBlockSize) +
-       (current_.next - thread_local.Blocks()->last());
+       (current_.next - thread_local_tmp.Blocks()->last());
 }
 
 
@@ -371,8 +371,8 @@ void** v8::HandleScope::CreateHandle(void* value) {
     }
     // If there's more room in the last block, we use that. This is used
     // for fast creation of scopes after scope barriers.
-    if (!thread_local.Blocks()->is_empty()) {
-      void** limit = &thread_local.Blocks()->last()[i::kHandleBlockSize];
+    if (!thread_local_tmp.Blocks()->is_empty()) {
+      void** limit = &thread_local_tmp.Blocks()->last()[i::kHandleBlockSize];
       if (current_.limit != limit) {
         current_.limit = limit;
       }
@@ -382,10 +382,10 @@ void** v8::HandleScope::CreateHandle(void* value) {
     // current handle scope by allocating a new handle block.
     if (result == current_.limit) {
       // If there's a spare block, use it for growing the current scope.
-      result = thread_local.GetSpareOrNewBlock();
+      result = thread_local_tmp.GetSpareOrNewBlock();
       // Add the extension to the global list of blocks, but count the
       // extension as part of the current scope.
-      thread_local.Blocks()->Add(result);
+      thread_local_tmp.Blocks()->Add(result);
       current_.extensions++;
       current_.limit = &result[i::kHandleBlockSize];
     }
@@ -403,12 +403,12 @@ void** v8::HandleScope::CreateHandle(void* value) {
 void Context::Enter() {
   if (IsDeadCheck("v8::Context::Enter()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  thread_local.EnterContext(env);
+  thread_local_tmp.EnterContext(env);
 
-  thread_local.SaveContext(i::GlobalHandles::Create(i::Top::context()));
+  thread_local_tmp.SaveContext(i::GlobalHandles::Create(i::Top::context()));
   i::Top::set_context(*env);
 
-  thread_local.SaveSecurityContext(
+  thread_local_tmp.SaveSecurityContext(
       i::GlobalHandles::Create(i::Top::security_context()));
   i::Top::set_security_context(*env);
 }
@@ -416,19 +416,19 @@ void Context::Enter() {
 
 void Context::Exit() {
   if (has_shut_down) return;
-  if (!ApiCheck(thread_local.LeaveLastContext(),
+  if (!ApiCheck(thread_local_tmp.LeaveLastContext(),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
     return;
   }
 
   // Content of 'last_context' and 'last_security_context' could be NULL.
-  i::Handle<i::Object> last_context = thread_local.RestoreContext();
+  i::Handle<i::Object> last_context = thread_local_tmp.RestoreContext();
   i::Top::set_context(static_cast<i::Context*>(*last_context));
   i::GlobalHandles::Destroy(last_context.location());
 
   i::Handle<i::Object> last_security_context =
-      thread_local.RestoreSecurityContext();
+      thread_local_tmp.RestoreSecurityContext();
   i::Top::set_security_context(
       static_cast<i::Context*>(*last_security_context));
   i::GlobalHandles::Destroy(last_security_context.location());
@@ -437,7 +437,7 @@ void Context::Exit() {
 
 void v8::HandleScope::DeleteExtensions() {
   ASSERT(current_.extensions != 0);
-  thread_local.DeleteExtensions(current_.extensions);
+  thread_local_tmp.DeleteExtensions(current_.extensions);
 }
 
 
@@ -2153,7 +2153,7 @@ bool Context::InSecurityContext() {
 
 v8::Local<v8::Context> Context::GetEntered() {
   if (IsDeadCheck("v8::Context::GetEntered()")) return Local<Context>();
-  i::Handle<i::Object> last = thread_local.LastEnteredContext();
+  i::Handle<i::Object> last = thread_local_tmp.LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
   return Utils::ToLocal(context);
@@ -2412,7 +2412,7 @@ Local<Integer> v8::Integer::New(int32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  thread_local.SetIgnoreOutOfMemory(true);
+  thread_local_tmp.SetIgnoreOutOfMemory(true);
 }
 
 
@@ -2682,12 +2682,12 @@ namespace internal {
 
 
 HandleScopeImplementer* HandleScopeImplementer::instance() {
-  return &thread_local;
+  return &thread_local_tmp;
 }
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  return thread_local.ArchiveThreadHelper(storage);
+  return thread_local_tmp.ArchiveThreadHelper(storage);
 }
 
 
@@ -2705,12 +2705,12 @@ char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
 
 
 int HandleScopeImplementer::ArchiveSpacePerThread() {
-  return sizeof(thread_local);
+  return sizeof(thread_local_tmp);
 }
 
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
-  return thread_local.RestoreThreadHelper(storage);
+  return thread_local_tmp.RestoreThreadHelper(storage);
 }
 
 
@@ -2743,16 +2743,16 @@ void HandleScopeImplementer::Iterate(
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   ImplementationUtilities::HandleScopeData* current =
       ImplementationUtilities::CurrentHandleScope();
-  Iterate(v, thread_local.Blocks(), current);
+  Iterate(v, thread_local_tmp.Blocks(), current);
 }
 
 
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
-  HandleScopeImplementer* thread_local =
+  HandleScopeImplementer* thread_local_tmp =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  List<void**>* blocks_of_archived_thread = thread_local->Blocks();
+  List<void**>* blocks_of_archived_thread = thread_local_tmp->Blocks();
   ImplementationUtilities::HandleScopeData* handle_data_of_archived_thread =
-      &thread_local->handle_scope_data_;
+      &thread_local_tmp->handle_scope_data_;
   Iterate(v, blocks_of_archived_thread, handle_data_of_archived_thread);
 
   return storage + ArchiveSpacePerThread();

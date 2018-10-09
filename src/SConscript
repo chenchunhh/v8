@@ -37,23 +37,23 @@ BUILD_OPTIONS_MAP = {
   'gcc': {
     'debug': {
       'default': {
-        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0 -m32 -std=c++11',
         'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
         'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
         'DIALECTFLAGS': '-ansi',
         'LIBS': 'pthread',
-        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter -Werror'
+        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter '
       },
       'dtoa': {
-        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0 -m32 -std=c++11',
         'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
         'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
         'DIALECTFLAGS': '-ansi',
         'LIBS': 'pthread',
-        'WARNINGFLAGS': '-Werror'
+        'WARNINGFLAGS': ''
       },
       'jscre': {
-        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0 -m32 -std=c++11',
         'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
         'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
         'DIALECTFLAGS': '-ansi',
